@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -57,47 +58,56 @@ type Dispatcher interface {
 // dispatcher is the internal Dispatcher implementation
 type dispatcher struct {
 	errorLog          log.Logger
+	debugLog          log.Logger
 	urlFilter         URLFilter
 	method            string
 	timeout           time.Duration
 	authorizationKeys []string
 	eventMap          event.MultiMap
-	queueSize         metrics.Gauge
+	semaphore         chan struct{}
 	droppedMessages   metrics.Counter
 	outbounds         chan<- outboundEnvelope
+	transactor        func(*http.Request) (*http.Response, error)
 }
 
 // NewDispatcher constructs a Dispatcher which sends envelopes via the returned channel.
 // The channel may be used to spawn one or more workers to process the envelopes.
-func NewDispatcher(om OutboundMeasures, o *Outbounder, urlFilter URLFilter) (Dispatcher, <-chan outboundEnvelope, error) {
+func NewDispatcher(om OutboundMeasures, o *Outbounder, urlFilter URLFilter) (Dispatcher, error) {
 	if urlFilter == nil {
 		var err error
 		urlFilter, err = NewURLFilter(o)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	outbounds := make(chan outboundEnvelope, o.outboundQueueSize())
 	logger := o.logger()
 	eventMap, err := o.eventMap()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	logger.Log(level.Key(), level.InfoValue(), "eventMap", eventMap)
 
 	return &dispatcher{
 		errorLog:          logging.Error(logger),
+		debugLog:          logging.Debug(logger),
 		urlFilter:         urlFilter,
 		method:            o.method(),
 		timeout:           o.requestTimeout(),
 		authorizationKeys: o.authKey(),
+		semaphore:         make(chan struct{}, o.concurrency()),
 		eventMap:          eventMap,
-		queueSize:         om.QueueSize,
 		droppedMessages:   om.DroppedMessages,
-		outbounds:         outbounds,
-	}, outbounds, nil
+		transactor: (&http.Client{
+			Transport: NewOutboundRoundTripper(om, o),
+			Timeout:   o.clientTimeout(),
+		}).Do,
+	}, nil
+}
+
+func (d *dispatcher) release() {
+	<-d.semaphore
 }
 
 // send wraps the given request in an outboundEnvelope together with a cancellable context,
@@ -106,19 +116,36 @@ func NewDispatcher(om OutboundMeasures, o *Outbounder, urlFilter URLFilter) (Dis
 // If the context is cancelled before the envelope can be queued, this method drops the message
 // and returns an error.
 func (d *dispatcher) send(parent context.Context, request *http.Request) error {
-	// increment the queue size first, so that we always keep a positive queue size
-	d.queueSize.Add(1.0)
+	// start the timeout now, before attempting to acquire the semaphore
 	ctx, cancel := context.WithTimeout(parent, d.timeout)
+	defer cancel()
 
 	select {
-	case d.outbounds <- outboundEnvelope{request.WithContext(ctx), cancel}:
-		return nil
+	case d.semaphore <- struct{}{}:
+		response, err := d.transactor(request.WithContext(ctx))
+		defer d.release()
 
-	default:
-		d.queueSize.Add(-1.0) // the message never made it to the queue
+		if err != nil {
+			d.errorLog.Log(logging.MessageKey(), "HTTP transaction error", logging.ErrorKey(), err)
+			return err
+		}
+
+		// keep the semaphore while we read the body, since that's I/O load on the remote server
+		if response.StatusCode < 400 {
+			d.debugLog.Log(logging.MessageKey(), "HTTP response", "status", response.Status, "url", request.URL)
+		} else {
+			d.errorLog.Log(logging.MessageKey(), "HTTP response", "status", response.Status, "url", request.URL)
+		}
+
+		io.Copy(ioutil.Discard, response.Body)
+		response.Body.Close()
+
+	case <-ctx.Done():
 		d.droppedMessages.Add(1.0)
-		return ErrOutboundQueueFull
+		return ctx.Err()
 	}
+
+	return nil
 }
 
 // newRequest creates a basic HTTP request appropriate for this dispatcher

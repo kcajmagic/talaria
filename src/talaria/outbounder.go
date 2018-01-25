@@ -43,8 +43,7 @@ const (
 
 	DefaultEventType                         = "default"
 	DefaultMethod                            = "POST"
-	DefaultWorkerPoolSize      uint          = 100
-	DefaultOutboundQueueSize   uint          = 1000
+	DefaultConcurrency         uint          = 100
 	DefaultRequestTimeout      time.Duration = 15 * time.Second
 	DefaultClientTimeout       time.Duration = 3 * time.Second
 	DefaultMaxIdleConns                      = 0
@@ -55,17 +54,16 @@ const (
 // Outbounder encapsulates the configuration necessary for handling outbound traffic
 // and grants the ability to start the outbounding infrastructure.
 type Outbounder struct {
-	Method            string                 `json:"method"`
-	RequestTimeout    time.Duration          `json:"requestTimeout"`
-	DefaultScheme     string                 `json:"defaultScheme"`
-	AllowedSchemes    []string               `json:"allowedSchemes"`
-	EventEndpoints    map[string]interface{} `json:"eventEndpoints"`
-	OutboundQueueSize uint                   `json:"outboundQueueSize"`
-	WorkerPoolSize    uint                   `json:"workerPoolSize"`
-	Transport         http.Transport         `json:"transport"`
-	ClientTimeout     time.Duration          `json:"clientTimeout"`
-	AuthKey           []string               `json:"authKey"`
-	Logger            log.Logger             `json:"-"`
+	Method         string                 `json:"method"`
+	RequestTimeout time.Duration          `json:"requestTimeout"`
+	DefaultScheme  string                 `json:"defaultScheme"`
+	AllowedSchemes []string               `json:"allowedSchemes"`
+	EventEndpoints map[string]interface{} `json:"eventEndpoints"`
+	Concurrency    uint                   `json:"workerPoolSize"`
+	Transport      http.Transport         `json:"transport"`
+	ClientTimeout  time.Duration          `json:"clientTimeout"`
+	AuthKey        []string               `json:"authKey"`
+	Logger         log.Logger             `json:"-"`
 }
 
 // NewOutbounder returns an Outbounder unmarshalled from a Viper environment.
@@ -73,12 +71,11 @@ type Outbounder struct {
 // Outbounder is returned.
 func NewOutbounder(logger log.Logger, v *viper.Viper) (o *Outbounder, err error) {
 	o = &Outbounder{
-		Method:            DefaultMethod,
-		RequestTimeout:    DefaultRequestTimeout,
-		DefaultScheme:     DefaultDefaultScheme,
-		AllowedSchemes:    []string{DefaultAllowedScheme},
-		OutboundQueueSize: DefaultOutboundQueueSize,
-		WorkerPoolSize:    DefaultWorkerPoolSize,
+		Method:         DefaultMethod,
+		RequestTimeout: DefaultRequestTimeout,
+		DefaultScheme:  DefaultDefaultScheme,
+		AllowedSchemes: []string{DefaultAllowedScheme},
+		Concurrency:    DefaultConcurrency,
 		Transport: http.Transport{
 			MaxIdleConns:        DefaultMaxIdleConns,
 			MaxIdleConnsPerHost: DefaultMaxIdleConnsPerHost,
@@ -159,20 +156,12 @@ func (o *Outbounder) eventMap() (event.MultiMap, error) {
 	return event.MultiMap{}, nil
 }
 
-func (o *Outbounder) outboundQueueSize() uint {
-	if o != nil && o.OutboundQueueSize > 0 {
-		return o.OutboundQueueSize
+func (o *Outbounder) concurrency() uint {
+	if o != nil && o.Concurrency > 0 {
+		return o.Concurrency
 	}
 
-	return DefaultOutboundQueueSize
-}
-
-func (o *Outbounder) workerPoolSize() uint {
-	if o != nil && o.WorkerPoolSize > 0 {
-		return o.WorkerPoolSize
-	}
-
-	return DefaultWorkerPoolSize
+	return DefaultConcurrency
 }
 
 func (o *Outbounder) transport() *http.Transport {
@@ -221,13 +210,10 @@ func (o *Outbounder) clientTimeout() time.Duration {
 // Start spawns all necessary goroutines and returns a device.Listener
 func (o *Outbounder) Start(om OutboundMeasures) (device.Listener, error) {
 	logging.Info(o.logger()).Log(logging.MessageKey(), "Starting outbounder")
-	dispatcher, outbounds, err := NewDispatcher(om, o, nil)
+	dispatcher, err := NewDispatcher(om, o, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	workerPool := NewWorkerPool(om, o, outbounds)
-	workerPool.Run()
 
 	return dispatcher.OnDeviceEvent, nil
 }

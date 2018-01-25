@@ -19,6 +19,7 @@ package main
 import (
 	"errors"
 	"io/ioutil"
+	"net/http"
 	"testing"
 	"time"
 
@@ -30,46 +31,52 @@ import (
 
 func testDispatcherIgnoredEvent(t *testing.T) {
 	var (
-		assert                     = assert.New(t)
-		require                    = require.New(t)
-		dispatcher, outbounds, err = NewDispatcher(NewTestOutboundMeasures(), nil, nil)
+		assert     = assert.New(t)
+		require    = require.New(t)
+		transactor = func(*http.Request) (*http.Response, error) {
+			assert.FailNow("The transactor should not have been called")
+			return nil, nil
+		}
+
+		d, err = NewDispatcher(NewTestOutboundMeasures(), nil, nil)
 	)
 
-	require.NotNil(dispatcher)
-	require.NotNil(outbounds)
+	require.NotNil(d)
 	require.NoError(err)
+	d.(*dispatcher).transactor = transactor
 
-	dispatcher.OnDeviceEvent(&device.Event{Type: device.Connect})
-	assert.Equal(0, len(outbounds))
+	d.OnDeviceEvent(&device.Event{Type: device.Connect})
 }
 
 func testDispatcherUnroutable(t *testing.T) {
 	var (
-		assert                     = assert.New(t)
-		require                    = require.New(t)
-		dispatcher, outbounds, err = NewDispatcher(NewTestOutboundMeasures(), nil, nil)
+		assert     = assert.New(t)
+		require    = require.New(t)
+		transactor = func(*http.Request) (*http.Response, error) {
+			assert.FailNow("The transactor should not have been called")
+			return nil, nil
+		}
+
+		d, err = NewDispatcher(NewTestOutboundMeasures(), nil, nil)
 	)
 
-	require.NotNil(dispatcher)
-	require.NotNil(outbounds)
+	require.NotNil(d)
 	require.NoError(err)
+	d.(*dispatcher).transactor = transactor
 
-	dispatcher.OnDeviceEvent(&device.Event{
+	d.OnDeviceEvent(&device.Event{
 		Type:    device.MessageReceived,
 		Message: &wrp.Message{Destination: "this is not a routable destination"},
 	})
-
-	assert.Equal(0, len(outbounds))
 }
 
 func testDispatcherBadURLFilter(t *testing.T) {
 	var (
-		assert                     = assert.New(t)
-		dispatcher, outbounds, err = NewDispatcher(NewTestOutboundMeasures(), &Outbounder{DefaultScheme: "bad"}, nil)
+		assert = assert.New(t)
+		d, err = NewDispatcher(NewTestOutboundMeasures(), &Outbounder{DefaultScheme: "bad"}, nil)
 	)
 
-	assert.Nil(dispatcher)
-	assert.Nil(outbounds)
+	assert.Nil(d)
 	assert.Error(err)
 }
 
@@ -150,13 +157,16 @@ func testDispatcherOnDeviceEventDispatchEvent(t *testing.T) {
 			t.Logf("%#v, method=%s, format=%s", record, record.outbounder.method(), format)
 
 			var (
-				expectedContents           = []byte{1, 2, 3, 4}
-				urlFilter                  = new(mockURLFilter)
-				dispatcher, outbounds, err = NewDispatcher(NewTestOutboundMeasures(), record.outbounder, urlFilter)
+				expectedContents = []byte{1, 2, 3, 4}
+				urlFilter        = new(mockURLFilter)
+				transactor       = func(request *http.Request) (*http.Response, error) {
+					return nil, nil
+				}
+
+				d, err = NewDispatcher(NewTestOutboundMeasures(), record.outbounder, urlFilter)
 			)
 
-			require.NotNil(dispatcher)
-			require.NotNil(outbounds)
+			require.NotNil(d)
 			require.NoError(err)
 
 			dispatcher.OnDeviceEvent(&device.Event{
