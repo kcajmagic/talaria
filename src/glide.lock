@@ -1,8 +1,8 @@
-hash: a046ab18301bdf95f383fdcb44169b3ffbfd1a63a5c2301b6538a3d333ea09f4
-updated: 2018-08-04T10:37:01.435226313-07:00
+hash: 100ae2ecdc6ed2f6a7a5f1783187d7f3c6b00801922ae5a040132ce672cca2bb
+updated: 2018-08-20T15:51:44.703461-07:00
 imports:
 - name: github.com/armon/go-metrics
-  version: 3c58d8115a78a6879e5df75ae900846768d36895
+  version: 783273d703149aaeb9897cf58613d5af48861c25
 - name: github.com/beorn7/perks
   version: 3a771d992973f24aa725d07868b467d1ddfceafb
   subpackages:
@@ -14,7 +14,7 @@ imports:
   subpackages:
   - linux
 - name: github.com/Comcast/webpa-common
-  version: c0ba2a000c0eca686367dc898b4023beecdedfce
+  version: fe5c1484b2da90c16669df9a4e92d0517c29fff5
   subpackages:
   - concurrent
   - convey
@@ -78,7 +78,7 @@ imports:
 - name: github.com/go-stack/stack
   version: 817915b46b97fd7bb80e8ab6b69f01a53ac3eebf
 - name: github.com/golang/protobuf
-  version: 7d1b268556d691919f2262240737157830eab632
+  version: 9eb2c01ac278a5d89ce4b2be68fe4500955d8179
   subpackages:
   - proto
 - name: github.com/gorilla/context
@@ -113,11 +113,11 @@ imports:
   - json/scanner
   - json/token
 - name: github.com/hashicorp/serf
-  version: 984a73625de3138f44deb38d00878fab39eb6447
+  version: 3b250ce4404edb266330f53fcfc8ad0d0dacfae7
   subpackages:
   - coordinate
 - name: github.com/influxdata/influxdb
-  version: c20e8137822a06c235e4d3f85bda4187300576e0
+  version: 48797873ee24fc1dcb5a63f23474d3210f6d68c5
   subpackages:
   - client/v2
   - models
@@ -135,11 +135,11 @@ imports:
   subpackages:
   - pbutil
 - name: github.com/mitchellh/go-homedir
-  version: 58046073cbffe2f25d425fe1331102f55cf719de
+  version: b8bc1bf767474819792c23f32d8286a45736f1c6
 - name: github.com/mitchellh/mapstructure
-  version: f15292f7a699fcc1a38a80977f80a046874ba8ac
+  version: bb74f1db0675b241733089d5a1faa5dd8b0ef57b
 - name: github.com/pelletier/go-toml
-  version: c2dbbc24a97911339e01bda0b8cabdbd8f13b602
+  version: c01d1270ff3e442a8a57cddc1c92dc1138598194
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
@@ -150,17 +150,17 @@ imports:
   - prometheus
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
-  version: 5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f
+  version: 99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: c7de2306084e37d54b8be01f3541a8464345e9a5
+  version: 7600349dcfe1abd18d72d3a1770870d9800a7801
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 05ee40e3a273f7245e8777337fc7b46e533a9a92
+  version: 54d17b57dd7d4a3aa092476596b3f8a933bde349
   subpackages:
   - internal/util
   - nfs
@@ -190,7 +190,7 @@ imports:
 - name: github.com/spf13/viper
   version: 25b30aa063fc18e48662b86996252eabdcf2f0c7
 - name: github.com/stretchr/objx
-  version: b8b73a35e9830ae509858c10dec5866b4d5c8bff
+  version: 9e1dfc121bca96d392da5d00591953bdb54ab306
 - name: github.com/stretchr/testify
   version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:
@@ -205,11 +205,11 @@ imports:
 - name: github.com/VividCortex/gohistogram
   version: 51564d9861991fb0ad0f531c99ef602d0f9866e6
 - name: golang.org/x/sys
-  version: 0ffbfd41fbef8ffcf9b62b0b0aa3a5873ed7a4fe
+  version: 7138fd3d9dc8335c567ca206f4333fb75eb05d56
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 96e34ec0e18a62a1e59880c7bf617b655efecb66
+  version: 5cec4b58c438bd98288aeb248bab2c1840713d21
   subpackages:
   - transform
   - unicode/norm
